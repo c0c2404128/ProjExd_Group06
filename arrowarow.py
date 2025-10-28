@@ -69,10 +69,15 @@ class Player(pygame.sprite.Sprite):
                 arrows.add(arrow)
                 
     def apply_powerup(self, powerup_type):
-        if powerup_type == "fire_rate":
+        if powerup_type == "fire_rate":  # 連射速度上昇
             self.shoot_delay = max(50, self.shoot_delay * 0.7)
         elif powerup_type == "multi_shot":
-            self.arrow_count += 1
+            self.arrow_count += 1  # 矢の数増加
+        elif powerup_type == "reduce_rate":
+            self.shoot_delay = max(50, self.shoot_delay * 1.3)  # 連射速度低下
+        elif powerup_type == "reduce_shot":
+            self.arrow_count -= 1  # 矢の数減少
+        elif 
 
 # --- 矢 クラス ---
 class Arrow(pygame.sprite.Sprite):
@@ -181,7 +186,7 @@ class Boss(pygame.sprite.Sprite):
 
 # --- ゲームの初期化 ---
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Arrow a Row 風ゲーム (ボス戦修正)")
+pygame.display.set_caption("進め！こうかとん～選択のアロー～")
 clock = pygame.time.Clock()
 
 # --- フォント ---
