@@ -179,6 +179,36 @@ class Boss(pygame.sprite.Sprite):
 # --- ボス クラスここまで ---
 
 
+# --- スコア クラス（竹前） ---
+class Score:
+    """
+    敵やボスを倒した数をスコアとして表示するクラス
+    敵：10点
+    ボス：100点
+    """
+    def __init__(self):
+        self.font = pygame.font.Font(None, 50)
+        self.color = (255, 255, 0)
+        self.value = 0
+        self.image = self.font.render(f"Score: {self.value}", True, self.color)
+        self.rect = self.image.get_rect()
+        self.rect.topleft = (10, SCREEN_HEIGHT - 60)
+
+    def add_enemy(self):
+        """敵撃破時にスコア加算"""
+        self.value += 10
+
+    def add_boss(self):
+        """ボス撃破時にスコア加算"""
+        self.value += 100
+
+    def update(self, screen: pygame.Surface):
+        """スコア表示を更新"""
+        self.image = self.font.render(f"Score: {self.value}", True, self.color)
+        screen.blit(self.image, self.rect)
+
+
+
 # --- ゲームの初期化 ---
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("Arrow a Row 風ゲーム (ボス戦修正)")
