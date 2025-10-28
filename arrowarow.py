@@ -23,6 +23,7 @@ STATE_PLAYING = 0 # 通常プレイ中
 STATE_CHOICE = 1  # 選択中
 STATE_BOSS = 2    # ボス戦
 
+
 # --- フォントの準備 (グローバルで定義) ---
 pygame.init() # フォントの前に init が必要
 jp_font_names = ["Yu Gothic", "MS Gothic", "Hiragino Sans", "sans-serif"]
@@ -32,12 +33,33 @@ if not font_small_jp:
 font_debug = pygame.font.Font(font_small_jp, 20)
 
 
+# --- 背景画像を流れるようにする ---
+bg_image=pygame.image.load("fig/background.png")#背景画像読み込み
+bg_y=0
+bg_y2=-SCREEN_HEIGHT
+#ゲームが進むにつれて背景が勝手に動くようにする
+scroll_speed=3
+def draw_background(speed):
+    # 背景はグローバル変数を更新してスクロールさせる
+    global bg_y, bg_y2
+    screen.blit(bg_image, (0, int(bg_y)))
+    screen.blit(bg_image, (0, int(bg_y2)))
+    # 呼び出し側から与えられるスクロール量で背景を移動させる
+    bg_y += speed
+    bg_y2 += speed
+    if bg_y >= SCREEN_HEIGHT:
+        bg_y = -SCREEN_HEIGHT
+    if bg_y2 >= SCREEN_HEIGHT:
+        bg_y2 = -SCREEN_HEIGHT
+
+
 # --- プレイヤー クラス ---
 class Player(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
         self.image = pygame.Surface((50, 50))
-        self.image.fill(BLUE)
+        #プレイヤーをkokatonにする
+        self.image=pygame.image.load("fig/kokaton.png")
         self.rect = self.image.get_rect()
         self.rect.centerx = SCREEN_WIDTH // 2
         self.rect.bottom = SCREEN_HEIGHT - 30
@@ -95,7 +117,8 @@ class Enemy(pygame.sprite.Sprite):
     def __init__(self, x_pos, y_pos):
         super().__init__()
         self.image = pygame.Surface((70, 70))
-        self.image.fill(RED)
+        #敵キャラ画像を設定
+        self.image=pygame.image.load("fig/enemy.png")
         self.rect = self.image.get_rect()
         self.rect.centerx = x_pos
         self.rect.y = y_pos
@@ -333,7 +356,8 @@ while running:
             enemies_spawned_for_gate = False 
 
     # --- 描画処理 ---
-    screen.fill(BLACK)
+    # 背景を描画してスクロールを反映させる
+    draw_background(current_scroll_speed)
     all_sprites.draw(screen)
     
     dist_text = font_debug.render(f"進行距離: {int(world_scroll_y)} | ゲート通過: {gate_pass_count}", True, WHITE)
