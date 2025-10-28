@@ -18,6 +18,7 @@ BLUE = (0, 0, 255)
 YELLOW = (255, 255, 0)
 PURPLE = (128, 0, 128) # ボスの色
 
+
 # ゲームの状態
 STATE_PLAYING = 0 # 通常プレイ中
 STATE_CHOICE = 1  # 選択中
@@ -230,6 +231,9 @@ bosses = pygame.sprite.Group()
 player = Player()
 all_sprites.add(player)
 
+# 
+score = Score()
+
 # --- ゲームループ用 変数 ---
 running = True
 game_over = False
@@ -319,8 +323,10 @@ while running:
     # --- 当たり判定 ---
     
     # 1. 矢 と 敵
-    pygame.sprite.groupcollide(arrows, enemies, True, True)
-
+    hits_arrow_enemy = pygame.sprite.groupcollide(arrows, enemies, True, True)
+    if hits_arrow_enemy:
+        for _ in hits_arrow_enemy:
+            score.add_enemy()
     # 1b. 矢 と ボス
     hits_arrow_boss = pygame.sprite.groupcollide(bosses, arrows, False, True) 
     if hits_arrow_boss:
