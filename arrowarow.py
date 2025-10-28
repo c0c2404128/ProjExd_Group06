@@ -100,11 +100,24 @@ class Enemy(pygame.sprite.Sprite):
         self.rect.centerx = x_pos
         self.rect.y = y_pos
         self.speed_y = 2
+        self.max_hp = 2 # 敵の体力
+        self.hp = self.max_hp
 
+    def hit(self):
+        self.hp -= 1
+        if self.hp <= 0:
+            self.kill()
+            return True
+        return False
+    
     def update(self, scroll_speed, target_y=0):
         self.rect.y += self.speed_y + scroll_speed
-        if self.rect.top > SCREEN_HEIGHT + 10:
+        if self.rect.top > SCREEN_HEIGHT + 10 :
             self.kill()
+        
+
+
+    
 
 # --- パワーアップ選択ゲート クラス ---
 class PowerUpChoice(pygame.sprite.Sprite):
@@ -289,7 +302,13 @@ while running:
     # --- 当たり判定 ---
     
     # 1. 矢 と 敵
-    pygame.sprite.groupcollide(arrows, enemies, True, True)
+    hits_arrow_enemy = pygame.sprite.groupcollide(arrows, enemies, True, True)
+    if hits_arrow_enemy:
+        for enemy_hit in hits_arrow_enemy.keys():
+            for _ in hits_arrow_enemy[enemy_hit]: 
+                enemy_hit.hit()
+
+
 
     # 1b. 矢 と ボス
     hits_arrow_boss = pygame.sprite.groupcollide(bosses, arrows, False, True) 
