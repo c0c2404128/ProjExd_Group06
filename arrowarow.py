@@ -141,7 +141,7 @@ class Boss(pygame.sprite.Sprite):
         self.rect.centerx = SCREEN_WIDTH // 2
         self.rect.y = 50
         
-        self.max_hp = 50 
+        self.max_hp = 100 
         self.hp = self.max_hp
         self.speed_x = 5 
         
