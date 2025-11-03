@@ -9,6 +9,9 @@ SCREEN_WIDTH = 600
 SCREEN_HEIGHT = 800
 FPS = 60
 
+# プレイヤーの初期底辺オフセット（大きいほど上に出る）
+PLAYER_BOTTOM_OFFSET = 60
+
 # 色の定義 (R, G, B)
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -34,7 +37,7 @@ font_debug = pygame.font.Font(font_small_jp, 20)
 
 
 # --- 背景画像を流れるようにする ---
-bg_image=pygame.image.load("fig/background.png")#背景画像読み込み
+bg_image = pygame.image.load("fig/background.png")
 bg_y=0
 bg_y2=-SCREEN_HEIGHT
 #ゲームが進むにつれて背景が勝手に動くようにする
@@ -57,12 +60,22 @@ def draw_background(speed):
 class Player(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
-        self.image = pygame.Surface((50, 50))
-        #プレイヤーをkokatonにする
-        self.image=pygame.image.load("fig/kokaton.png")
+        # プレイヤー画像をこうかとんにする
+        try:
+            img = pygame.image.load("fig/kokaton.png")
+            # ゲーム内で扱いやすいサイズにスケールする
+            img = pygame.transform.smoothscale(img, (50, 50))
+            try:
+                self.image = img.convert_alpha()
+            except Exception:
+                self.image = img.convert()
+        except Exception as e:
+            print("Error: failed to load 'fig/kokaton.png' ->", e)
+            raise SystemExit("Missing required image: ex5/fig/kokaton.png. 画像を配置してください。")
         self.rect = self.image.get_rect()
         self.rect.centerx = SCREEN_WIDTH // 2
-        self.rect.bottom = SCREEN_HEIGHT - 30
+        # 少し上に表示する
+        self.rect.bottom = SCREEN_HEIGHT - PLAYER_BOTTOM_OFFSET
         self.speed_x = 8
         self.shoot_delay = 500
         self.last_shot_time = pygame.time.get_ticks()
@@ -116,9 +129,13 @@ class Arrow(pygame.sprite.Sprite):
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, x_pos, y_pos):
         super().__init__()
-        self.image = pygame.Surface((70, 70))
-        #敵キャラ画像を設定
-        self.image=pygame.image.load("fig/enemy.png")
+        # 敵キャラ画像を設定
+        try:
+            img = pygame.image.load("fig/enemy.png").convert_alpha()
+            self.image = pygame.transform.smoothscale(img, (70, 70))
+        except Exception as e:
+            print("Error: failed to load 'fig/enemy.png' ->", e)
+            raise SystemExit("Missing required image: ex5/fig/enemy.png. 画像を配置してください。")
         self.rect = self.image.get_rect()
         self.rect.centerx = x_pos
         self.rect.y = y_pos
@@ -157,8 +174,13 @@ class Boss(pygame.sprite.Sprite):
         super().__init__()
         self.width = 150
         self.height = 100
-        self.image_orig = pygame.Surface((self.width, self.height))
-        self.image_orig.fill(PURPLE)
+        # ボス画像設定（画像必須）
+        try:
+            img = pygame.image.load("fig/Bos.png").convert_alpha()
+            self.image_orig = pygame.transform.smoothscale(img, (self.width, self.height))
+        except Exception as e:
+            print("Error: failed to load 'fig/Bos.png' ->", e)
+            raise SystemExit("Missing required image: ex5/fig/Bos.png. 画像を配置してください。")
         self.image = self.image_orig.copy()
         self.rect = self.image.get_rect()
         self.rect.centerx = SCREEN_WIDTH // 2
@@ -222,6 +244,7 @@ bosses = pygame.sprite.Group()
 # プレイヤーの作成
 player = Player()
 all_sprites.add(player)
+
 
 # --- ゲームループ用 変数 ---
 running = True
@@ -325,7 +348,7 @@ while running:
     hits_player_enemy = pygame.sprite.spritecollide(player, enemies, True)
     if hits_player_enemy:
         game_over = True
-        
+    
     # 2b. プレイヤー と ボス
     hits_player_boss = pygame.sprite.spritecollide(player, bosses, False)
     if hits_player_boss:
@@ -358,7 +381,15 @@ while running:
     # --- 描画処理 ---
     # 背景を描画してスクロールを反映させる
     draw_background(current_scroll_speed)
-    all_sprites.draw(screen)
+
+    # 明示的に描画順を指定する: 敵・ボス -> 矢 -> プレイヤー -> 選択ゲート -> UI
+    enemies.draw(screen)
+    bosses.draw(screen)
+    arrows.draw(screen)
+    # プレイヤーは最後の方に描く（被写体を上にする）
+    player_group = pygame.sprite.GroupSingle(player)
+    player_group.draw(screen)
+    choice_gates.draw(screen)
     
     dist_text = font_debug.render(f"進行距離: {int(world_scroll_y)} | ゲート通過: {gate_pass_count}", True, WHITE)
     screen.blit(dist_text, (10, 10))
