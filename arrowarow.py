@@ -5,8 +5,8 @@ import os
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 # --- 定数の設定 ---
-SCREEN_WIDTH = 750
-SCREEN_HEIGHT = 800
+SCREEN_WIDTH = 600
+SCREEN_HEIGHT = 750 # 画面の大きさに合うように修正
 FPS = 60
 
 # プレイヤーの初期底辺オフセット（大きいほど上に出る）
@@ -20,6 +20,7 @@ GREEN = (0, 200, 0)
 BLUE = (0, 0, 255)
 YELLOW = (255, 255, 0)
 PURPLE = (128, 0, 128) # ボスの色
+
 
 # ゲームの状態
 STATE_PLAYING = 0 # 通常プレイ中
@@ -324,6 +325,51 @@ class Bomb(pygame.sprite.Sprite):
             self.kill()
 # ---爆弾に関するコードここまで ---
 
+# --- スコア クラス（竹前） ---
+class Score:
+    """
+    敵やボスを倒した数をスコアとして表示するクラス
+    敵：10点
+    ボス：100点
+    おまけ：ボスを撃破したときに「ボス撃破！」と３秒間表示される
+    """
+    def __init__(self):
+        self.font = pygame.font.Font(None, 50)
+        self.color = (255, 255, 0)
+        self.value = 0
+        self.image = self.font.render(f"Score: {self.value}", True, self.color)
+        self.rect = self.image.get_rect()
+        self.rect.topleft = (10, SCREEN_HEIGHT - 60)
+
+        self.boss_message_font = pygame.font.SysFont("hg正楷書体pro", 80) # font.Font(None, 80)ではできなかった
+        self.image2 = self.boss_message_font.render("ボス撃破！", True, (255, 0, 0)) # 「ボス撃破！」という赤文字を作成
+        self.image2_rect = self.image2.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)) # 中央に表示される
+        self.show_message = False # 表示する・しないのフラグ
+        self.boss_time = 0
+
+    def add_enemy(self):
+        """ザコ敵撃破時にスコア加算"""
+        self.value += 10
+
+    def add_boss(self):
+        """ボス撃破時にスコア加算"""
+        self.value += 100
+        self.show_message = True
+        self.boss_time = pygame.time.get_ticks()
+
+    def update(self, screen: pygame.Surface):
+        """スコア表示を更新"""
+        self.image = self.font.render(f"Score: {self.value}", True, self.color)
+        screen.blit(self.image, self.rect)
+
+        # ボス撃破メッセージを3秒間表示
+        if self.show_message: # メッセージを表示するのか
+            screen.blit(self.image2, self.image2_rect)
+            if pygame.time.get_ticks() - self.boss_time > 3000: # 3000ミリ秒より大きくなったら消す
+                self.show_message = False
+# --- スコア クラスここまで ---
+
+
 # --- ゲームの初期化 ---
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("進め！こうかとん～選択のアロー～")
@@ -347,6 +393,8 @@ bomb_group=pygame.sprite.Group()
 player = Player()
 all_sprites.add(player)
 
+# スコアの作成
+score = Score()
 
 # --- ゲームループ用 変数 ---
 running = True
@@ -465,6 +513,8 @@ while running:
     # 1. 矢 と 敵
     hits_arrow_enemy = pygame.sprite.groupcollide(enemies, arrows, False, True)
     if hits_arrow_enemy:
+        for _ in hits_arrow_enemy:# 当たったら
+            score.add_enemy()
         for enemy_hit in hits_arrow_enemy.keys():
             for _ in hits_arrow_enemy[enemy_hit]: 
                 enemy_hit.hit()
@@ -476,7 +526,9 @@ while running:
     if hits_arrow_boss:
         for boss_hit in hits_arrow_boss.keys():
             for _ in hits_arrow_boss[boss_hit]: 
-                boss_hit.hit() 
+                ataru = boss_hit.hit()
+                if ataru:# 当たったら
+                    score.add_boss()
 
     # 2. プレイヤー と 敵
     hits_player_enemy = pygame.sprite.spritecollide(player, enemies, True)
@@ -530,6 +582,7 @@ while running:
     
     dist_text = font_debug.render(f"進行距離: {int(world_scroll_y)} | ゲート通過: {gate_pass_count}", True, WHITE)
     screen.blit(dist_text, (10, 10))
+    score.update(screen) # スクリーンにスコアを表示
 
     pygame.display.flip()
 
