@@ -169,6 +169,7 @@ class Enemy(pygame.sprite.Sprite):
     def hit(self):
         self.hp -= 1 # ダメージを受ける
         if self.hp <= 0:
+            score.add_enemy()
             self.kill()
             return True
         return False
@@ -513,11 +514,10 @@ while running:
     # 1. 矢 と 敵
     hits_arrow_enemy = pygame.sprite.groupcollide(enemies, arrows, False, True)
     if hits_arrow_enemy:
-        for _ in hits_arrow_enemy:# 当たったら
-            score.add_enemy()
         for enemy_hit in hits_arrow_enemy.keys():
             for _ in hits_arrow_enemy[enemy_hit]: 
                 enemy_hit.hit()
+
 
 
 
