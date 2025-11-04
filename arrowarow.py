@@ -132,8 +132,8 @@ class PowerUpChoice(pygame.sprite.Sprite):
 class Boss(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
-        self.width = 150
-        self.height = 100
+        self.width = 100
+        self.height = 150
         self.image_orig = pygame.Surface((self.width, self.height))
         self.image_orig.fill(PURPLE)
         self.image = self.image_orig.copy()
