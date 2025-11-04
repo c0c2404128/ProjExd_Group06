@@ -26,6 +26,9 @@ STATE_PLAYING = 0 # 通常プレイ中
 STATE_CHOICE = 1  # 選択中
 STATE_BOSS = 2    # ボス戦
 
+# 追加効果の辞書
+POWERUP_DIC = {"fire_rate":"連射速度UP","multi_shot":"矢の数+1","reduce_rate":"連射速度DOWN","reduce_shot":"矢の数-1","speedup":"横移動速度上昇"}
+POWERUP_DIC_BUFF = {"fire_rate":"連射速度UP","multi_shot":"矢の数+1","reduce_rate":"連射速度DOWN","speedup":"横移動速度上昇"}
 
 # --- フォントの準備 (グローバルで定義) ---
 pygame.init() # フォントの前に init が必要
@@ -80,6 +83,8 @@ class Player(pygame.sprite.Sprite):
         self.shoot_delay = 500
         self.last_shot_time = pygame.time.get_ticks()
         self.arrow_count = 1
+        self.skill_cooldown = 5000
+        self.last_skill_time = -self.skill_cooldown
 
     def update_movement(self, keys):
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
@@ -104,10 +109,24 @@ class Player(pygame.sprite.Sprite):
                 arrows.add(arrow)
                 
     def apply_powerup(self, powerup_type):
-        if powerup_type == "fire_rate":
+        if powerup_type == "fire_rate":  # 連射速度上昇
             self.shoot_delay = max(50, self.shoot_delay * 0.7)
         elif powerup_type == "multi_shot":
-            self.arrow_count += 1
+            self.arrow_count += 1  # 矢の数増加
+        elif powerup_type == "reduce_rate":
+            self.shoot_delay = max(50, self.shoot_delay * 1.3)  # 連射速度低下
+        elif powerup_type == "reduce_shot":
+            self.arrow_count -= 1  # 矢の数減少
+        elif powerup_type == "speedup":
+            self.speed_x += 4  # こうかとんの速度上昇
+
+    def use_skill(self,enemy_group:pygame.sprite.Group):  # スペシャルスキル
+        now = pygame.time.get_ticks()
+        if now - self.last_skill_time > self.skill_cooldown:
+            self.last_skill_time = now
+            for enemy in enemy_group:
+                enemy.kill()
+
 
 # --- 矢 クラス ---
 class Arrow(pygame.sprite.Sprite):
@@ -201,10 +220,7 @@ class Boss(pygame.sprite.Sprite):
         
         hp_bar_rect = pygame.Rect(10, self.height - 20, self.width - 20, 10)
         pygame.draw.rect(self.image, RED, hp_bar_rect)
-        
-        # <--- 修正: 計算結果を int() で囲み、整数に変換 ---
-        current_hp_width = int((self.width - 20) * (self.hp / self.max_hp))
-        # <--- 修正ここまで ---
+        current_hp_width = int((self.width - 20) * (self.hp / self.max_hp))     
         
         if current_hp_width < 0:
             current_hp_width = 0
@@ -226,7 +242,7 @@ class Boss(pygame.sprite.Sprite):
 
 # --- ゲームの初期化 ---
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Arrow a Row 風ゲーム (ボス戦修正)")
+pygame.display.set_caption("進め！こうかとん～選択のアロー～")
 clock = pygame.time.Clock()
 
 # --- フォント ---
@@ -267,6 +283,10 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+        if event.type == pygame.KEYDOWN:  # Fが押されたときにスキルを使う
+            if event.key == pygame.K_f:
+                player.use_skill(enemies)
+    
             
     if game_over:
         screen.fill(BLACK)
@@ -299,8 +319,18 @@ while running:
             enemies.add(e)
 
         if world_scroll_y > next_gate_trigger:
-            gate1 = PowerUpChoice(SCREEN_WIDTH * 0.25, -100, "fire_rate", "連射速度UP")
-            gate2 = PowerUpChoice(SCREEN_WIDTH * 0.75, -100, "multi_shot", "矢の数+1")
+            state_list = []  # gate1とgate2の追加効果の選択をする
+            if(player.arrow_count == 1):  # もし矢の数が1だったら矢の数を減らすデバフは選ばれない
+                state_list = list(POWERUP_DIC_BUFF.keys())
+                random_state = random.sample(state_list,2)
+                gate1 = PowerUpChoice(SCREEN_WIDTH * 0.25, -100, random_state[0], POWERUP_DIC_BUFF[random_state[0]])
+                gate2 = PowerUpChoice(SCREEN_WIDTH * 0.75, -100, random_state[1], POWERUP_DIC_BUFF[random_state[1]])
+            else:  
+                state_list = list(POWERUP_DIC.keys())
+                random_state = random.sample(state_list,2)
+                gate1 = PowerUpChoice(SCREEN_WIDTH * 0.25, -100, random_state[0], POWERUP_DIC[random_state[0]])
+                gate2 = PowerUpChoice(SCREEN_WIDTH * 0.75, -100, random_state[1], POWERUP_DIC[random_state[1]])
+            
             all_sprites.add(gate1, gate2)
             choice_gates.add(gate1, gate2)
             game_state = STATE_CHOICE 
