@@ -5,7 +5,7 @@ import os
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 # --- 定数の設定 ---
-SCREEN_WIDTH = 600
+SCREEN_WIDTH = 750
 SCREEN_HEIGHT = 800
 FPS = 60
 
@@ -146,6 +146,7 @@ class Arrow(pygame.sprite.Sprite):
 
 # --- 敵 クラス ---
 class Enemy(pygame.sprite.Sprite):
+    max_hp = 2  # クラス変数として最大体力を定義
     def __init__(self, x_pos, y_pos):
         super().__init__()
         # 敵キャラ画像を設定
@@ -155,15 +156,40 @@ class Enemy(pygame.sprite.Sprite):
         except Exception as e:
             print("Error: failed to load 'fig/enemy.png' ->", e)
             raise SystemExit("Missing required image: ex5/fig/enemy.png. 画像を配置してください。")
+        
+        self.width = 70
+        self.height = 70
         self.rect = self.image.get_rect()
         self.rect.centerx = x_pos
         self.rect.y = y_pos
         self.speed_y = 2
+        self.hp = Enemy.max_hp
 
+    def hit(self):
+        self.hp -= 1 # ダメージを受ける
+        if self.hp <= 0:
+            self.kill()
+            return True
+        return False
+    
     def update(self, scroll_speed, target_y=0):
         self.rect.y += self.speed_y + scroll_speed
-        if self.rect.top > SCREEN_HEIGHT + 10:
+
+        hp_bar_rect = pygame.Rect(10, self.height - 20, self.width - 20, 10)
+        pygame.draw.rect(self.image, RED, hp_bar_rect)
+        current_hp_width = int((self.width - 20) * (self.hp / self.max_hp))
+
+        if current_hp_width < 0:
+            current_hp_width = 0
+        current_hp_rect = pygame.Rect(10, self.height - 20, current_hp_width, 10)
+        pygame.draw.rect(self.image, GREEN, current_hp_rect)
+
+        if self.rect.top > SCREEN_HEIGHT + 10 :
             self.kill()
+        
+
+
+    
 
 # --- パワーアップ選択ゲート クラス ---
 class PowerUpChoice(pygame.sprite.Sprite):
@@ -336,10 +362,11 @@ enemies_spawned_for_gate = False
 gate_pass_count = 0
 bomb_timer=0 
 
+time = 0
 # --- ゲームループ ---
 while running:
     clock.tick(FPS)
-    
+    time += 1
     # --- イベント処理 (入力) ---
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -354,7 +381,10 @@ while running:
         screen.blit(game_over_text, text_rect)
         pygame.display.flip()
         continue 
-        
+    
+    if time % 2000 == 0:
+        Enemy.max_hp += 1
+
     keys = pygame.key.get_pressed()
     
     # --- 更新処理 ---
@@ -433,7 +463,13 @@ while running:
     # --- 当たり判定 ---
     
     # 1. 矢 と 敵
-    pygame.sprite.groupcollide(arrows, enemies, True, True)
+    hits_arrow_enemy = pygame.sprite.groupcollide(enemies, arrows, False, True)
+    if hits_arrow_enemy:
+        for enemy_hit in hits_arrow_enemy.keys():
+            for _ in hits_arrow_enemy[enemy_hit]: 
+                enemy_hit.hit()
+
+
 
     # 1b. 矢 と ボス
     hits_arrow_boss = pygame.sprite.groupcollide(bosses, arrows, False, True) 
