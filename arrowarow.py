@@ -191,8 +191,8 @@ class PowerUpChoice(pygame.sprite.Sprite):
 class Boss(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
-        self.width = 150
-        self.height = 100
+        self.width = 100
+        self.height = 150
         # ボス画像設定（画像必須）
         try:
             img = pygame.image.load("fig/Bos.png").convert_alpha()
@@ -204,17 +204,28 @@ class Boss(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.centerx = SCREEN_WIDTH // 2
         self.rect.y = 50
+        self.change_direction_timer=0 #タイマーの初期化
         
-        self.max_hp = 50 
+        self.max_hp = 20  #ボスの初期の体力
         self.hp = self.max_hp
         self.speed_x = 5 
         
         self.font = pygame.font.Font(font_small_jp, 20)
 
     def update(self, scroll_speed, target_y=0):
+        self.change_direction_timer +=1 
+        if self.change_direction_timer > 60:  # 60フレームごとに変更（約1秒）
+            self.speed_x = random.choice([-10, -3, 3, 10])
+            self.change_direction_timer = 0 #タイマーのリセット
+
         self.rect.x += self.speed_x
-        if self.rect.left < 0 or self.rect.right > SCREEN_WIDTH:
-            self.speed_x = -self.speed_x 
+
+        if self.rect.left<0: # 画面端に到達したら位置を修正
+            self.rect.left=0
+            self.speed_x = -self.speed_x
+        elif self.rect.right > SCREEN_WIDTH:
+            self.rect.right = SCREEN_WIDTH
+            self.speed_x = -self.speed_x
 
         self.image = self.image_orig.copy()
         
@@ -239,6 +250,53 @@ class Boss(pygame.sprite.Sprite):
         return False
 # --- ボス クラスここまで ---
 
+# ---爆弾に関するコード ---
+def calc_orientation(src_rect, dst_rect):
+    dx = dst_rect.centerx - src_rect.centerx
+    dy = dst_rect.centery - src_rect.centery
+    distance = max((dx**2 + dy**2)**0.5, 1)  # 0除算防止
+    return dx / distance, dy / distance
+
+def check_bound(rect):
+    x_ok = 0 <= rect.left and rect.right <= SCREEN_WIDTH
+    y_ok = 0 <= rect.top and rect.bottom <= SCREEN_HEIGHT
+    return x_ok, y_ok
+
+class Bomb(pygame.sprite.Sprite):
+    """
+    爆弾に関するクラス
+    """
+    colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255)]
+
+    def __init__(self, boss: "Boss", player: Player):
+        """
+        爆弾円Surfaceを生成する
+        引数1 boss：爆弾を投下するボス
+        引数2 player：攻撃対象のプレイヤー
+        """
+        super().__init__()
+        rad = random.randint(10, 50)  # 爆弾円の半径：10以上50以下の乱数
+        self.image = pygame.Surface((2*rad, 2*rad))
+        color = (255, 0, 0) #赤の爆弾
+        pygame.draw.circle(self.image, color, (rad, rad), rad)
+        self.image.set_colorkey((0, 0, 0))
+        self.rect = self.image.get_rect()
+        # 爆弾を投下するemyから見た攻撃対象のbirdの方向を計算
+        self.vx, self.vy = calc_orientation(boss.rect, player.rect)  
+        self.rect.centerx = boss.rect.centerx
+        self.rect.centery = boss.rect.centery+boss.rect.height//2
+        self.speed = 6
+        self.state = "active"
+
+    def update(self):
+        """
+        爆弾を速度ベクトルself.vx, self.vyに基づき移動させる
+        引数 screen：画面Surface
+        """
+        self.rect.move_ip(self.speed*self.vx, self.speed*self.vy)
+        if check_bound(self.rect) != (True, True):
+            self.kill()
+# ---爆弾に関するコードここまで ---
 
 # --- ゲームの初期化 ---
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -256,6 +314,8 @@ enemies = pygame.sprite.Group()
 arrows = pygame.sprite.Group()
 choice_gates = pygame.sprite.Group() 
 bosses = pygame.sprite.Group()
+bomb_group=pygame.sprite.Group()
+
 
 # プレイヤーの作成
 player = Player()
@@ -273,7 +333,8 @@ scroll_speed = 3
 next_gate_trigger = 1000 
 gate_y_position = 650    
 enemies_spawned_for_gate = False
-gate_pass_count = 0 
+gate_pass_count = 0
+bomb_timer=0 
 
 # --- ゲームループ ---
 while running:
@@ -347,6 +408,13 @@ while running:
 
     elif game_state == STATE_BOSS:
         current_scroll_speed = 0 
+        bomb_timer += 1
+        if bomb_timer > 60:
+            for boss in bosses:
+                bomb = Bomb(boss, player)
+                bomb_group.add(bomb)
+            bomb_timer = 0
+
         if len(bosses) == 0:
             game_state = STATE_PLAYING
             next_gate_trigger = world_scroll_y + 1500
@@ -378,10 +446,10 @@ while running:
     hits_player_enemy = pygame.sprite.spritecollide(player, enemies, True)
     if hits_player_enemy:
         game_over = True
-    
-    # 2b. プレイヤー と ボス
-    hits_player_boss = pygame.sprite.spritecollide(player, bosses, False)
-    if hits_player_boss:
+        
+    # 2b. プレイヤー と ボスbakudan
+    hits_player_boss_bakudan = pygame.sprite.spritecollide(player, bomb_group, False)
+    if hits_player_boss_bakudan:
         game_over = True
         
     # 3. プレイヤー と 選択ゲート
@@ -420,6 +488,9 @@ while running:
     player_group = pygame.sprite.GroupSingle(player)
     player_group.draw(screen)
     choice_gates.draw(screen)
+    all_sprites.draw(screen)
+    bomb_group.update()
+    bomb_group.draw(screen) #ボスの爆弾描画
     
     dist_text = font_debug.render(f"進行距離: {int(world_scroll_y)} | ゲート通過: {gate_pass_count}", True, WHITE)
     screen.blit(dist_text, (10, 10))
